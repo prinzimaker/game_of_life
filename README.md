@@ -4,8 +4,8 @@ Un'implementazione moderna, interattiva e performante del famoso **Gioco della V
 
 Questo progetto utilizza HTML5 Canvas per renderizzare una griglia virtuale ampia, offrendo controlli di navigazione fluidi simili a quelli di una mappa interattiva (Pan & Zoom).
 
-![Anteprima del Gioco](https://via.placeholder.com/800x400?text=Screenshot+Game+of+Life+Preview)
-*(Sostituisci questo link con uno screenshot reale del tuo gioco)*
+[https://via.placeholder.com/800x400?text=Screenshot+Game+of+Life+Preview](https://github.com/prinzimaker/game_of_life/blob/main/screenshot.png)
+
 
 ## ✨ Caratteristiche Principali
 
