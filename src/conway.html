@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life - Memory & Layout</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #121212;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            height: calc(100vh - 80px); /* Lascia spazio per il dock */
+            width: 100vw;
+        }
+
+        /* --- Barra Inferiore (Dock Container) --- */
+        #bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centra tutto il blocco */
+            pointer-events: none; /* Permette di cliccare attraverso le parti vuote */
+        }
+
+        /* Il "Dock" scuro centrale */
+        .dock-panel {
+            background: rgba(34, 34, 34, 0.95);
+            border: 1px solid #444;
+            border-bottom: none;
+            border-radius: 16px 16px 0 0; /* Arrotondato sopra */
+            padding: 0 25px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+            pointer-events: auto; /* Riabilita i click sul pannello */
+        }
+
+        /* Gruppo Pulsanti */
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid transparent;
+            color: #eee;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            border-color: #555;
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* Colori e stati specifici */
+        #play-btn { color: #81c784; }
+        #stop-btn { color: #e57373; }
+        .memory-btn { color: #64b5f6; } /* Colore per Save/Load */
+
+        /* Separatore Verticale */
+        .separator {
+            width: 1px;
+            height: 30px;
+            background-color: #555;
+        }
+
+        /* --- Help Visivo --- */
+        .help-group-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            opacity: 0.8;
+        }
+
+        .help-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* SVG Styling */
+        svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .mouse-fill { fill: #ccc; stroke: none; }
+        .plus-sign { font-size: 14px; color: #888; margin: 0 2px; }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="bottom-bar">
+        <div class="dock-panel">
+            
+            <div class="controls-group">
+                <button id="play-btn" title="Avvia">▶</button>
+                <button id="stop-btn" style="display:none;" title="Pausa">■</button>
+                <button id="random-btn" title="Genera Casuale">🔀</button>
+                <button id="clear-btn" title="Pulisci Tutto">🗑️</button>
+                
+                <div style="width: 10px;"></div>
+
+                <button id="save-btn" class="memory-btn" title="Salva disegno in memoria">💾</button>
+                <button id="load-btn" class="memory-btn" title="Carica disegno dalla memoria">📂</button>
+            </div>
+
+            <div class="separator"></div>
+
+            <div class="help-group-container">
+                
+                <div class="help-item" title="Clic Sinistro: Disegna">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="4"/><line x1="12" y1="4" x2="12" y2="12"/><path d="M6 8 a4 4 0 0 1 4-4 h2 v8 h-6 z" class="mouse-fill"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                </div>
+
+                <div class="help-item" title="Clic Destro/Centrale: Sposta">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="4"/><line x1="12" y1="4" x2="12" y2="12"/><path d="M12 4 h2 a4 4 0 0 1 4 4 v4 h-6 z" class="mouse-fill"/></svg>
+                    <svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="19 9 22 12 19 15"/><polyline points="9 19 12 22 15 19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+                </div>
+
+                <div class="help-item" title="Rotella: Zoom">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="4"/><line x1="12" y1="4" x2="12" y2="8"/><rect x="11" y="5" width="2" height="4" rx="1" class="mouse-fill"/></svg>
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Configurazione ---
+        const CELL_SIZE = 20; 
+        const GRID_COLOR = '#333';
+        const ALIVE_COLOR = '#00ff00';
+        const VIRTUAL_COLS = 300; 
+        const VIRTUAL_ROWS = 300;
+        const VIRTUAL_WIDTH = VIRTUAL_COLS * CELL_SIZE;
+        const VIRTUAL_HEIGHT = VIRTUAL_ROWS * CELL_SIZE;
+
+        // --- Stato ---
+        let grid = [];
+        let savedGrid = null; // Memoria per il salvataggio
+        let isRunning = false;
+        let animationId;
+        
+        let camera = { x: 0, y: 0, zoom: 1, isDragging: false, lastX: 0, lastY: 0 };
+        let isDrawing = false;
+
+        function init() {
+            createGrid();
+            resizeCanvas();
+            window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+            randomizeGrid();
+            draw();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 80; // Sottrai altezza barra
+            applyZoomLimits(camera.zoom, true);
+        }
+
+        function createGrid() {
+            grid = new Array(VIRTUAL_COLS).fill(null).map(() => new Array(VIRTUAL_ROWS).fill(0));
+        }
+
+        function randomizeGrid() {
+             grid = grid.map(col => col.map(() => Math.random() > 0.85 ? 1 : 0));
+        }
+
+        // --- Logica Conway ---
+        function computeNextGen() {
+            let nextGen = grid.map(arr => [...arr]);
+            
+            // Ottimizzazione base: scansiona solo celle rilevanti sarebbe meglio, 
+            // ma manteniamo la logica semplice e solida.
+            for (let col = 0; col < VIRTUAL_COLS; col++) {
+                for (let row = 0; row < VIRTUAL_ROWS; row++) {
+                    const cell = grid[col][row];
+                    let numNeighbors = 0;
+                    
+                    // Controllo rapido vicini
+                    for (let i = -1; i <= 1; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            if (i === 0 && j === 0) continue;
+                            const x = col + i;
+                            const y = row + j;
+                            if (x >= 0 && x < VIRTUAL_COLS && y >= 0 && y < VIRTUAL_ROWS) {
+                                numNeighbors += grid[x][y];
+                            }
+                        }
+                    }
+
+                    if (cell === 1 && (numNeighbors < 2 || numNeighbors > 3)) {
+                        nextGen[col][row] = 0;
+                    } else if (cell === 0 && numNeighbors === 3) {
+                        nextGen[col][row] = 1;
+                    }
+                }
+            }
+            grid = nextGen;
+        }
+
+        function gameLoop() {
+            if (!isRunning) return;
+            computeNextGen();
+            draw();
+            setTimeout(() => {
+                animationId = requestAnimationFrame(gameLoop);
+            }, 80); // Velocità leggermente aumentata
+        }
+
+        // --- Rendering ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.zoom, camera.zoom);
+
+            // Sfondo
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+            // Calcolo Viewport
+            const startCol = Math.max(0, Math.floor(-camera.x / (CELL_SIZE * camera.zoom)));
+            const endCol = Math.min(VIRTUAL_COLS, Math.ceil((canvas.width - camera.x) / (CELL_SIZE * camera.zoom)));
+            const startRow = Math.max(0, Math.floor(-camera.y / (CELL_SIZE * camera.zoom)));
+            const endRow = Math.min(VIRTUAL_ROWS, Math.ceil((canvas.height - camera.y) / (CELL_SIZE * camera.zoom)));
+
+            // Griglia
+            if (camera.zoom > 0.3) {
+                ctx.strokeStyle = GRID_COLOR;
+                ctx.lineWidth = 1 / camera.zoom;
+                ctx.beginPath();
+                for (let i = startCol; i <= endCol; i++) {
+                    ctx.moveTo(i * CELL_SIZE, startRow * CELL_SIZE);
+                    ctx.lineTo(i * CELL_SIZE, endRow * CELL_SIZE);
+                }
+                for (let j = startRow; j <= endRow; j++) {
+                    ctx.moveTo(startCol * CELL_SIZE, j * CELL_SIZE);
+                    ctx.lineTo(endCol * CELL_SIZE, j * CELL_SIZE);
+                }
+                ctx.stroke();
+            }
+
+            // Celle
+            ctx.fillStyle = ALIVE_COLOR;
+            for (let col = startCol; col < endCol; col++) {
+                for (let row = startRow; row < endRow; row++) {
+                    if (grid[col][row] === 1) {
+                        ctx.beginPath();
+                        ctx.rect(col * CELL_SIZE + 0.5, row * CELL_SIZE + 0.5, CELL_SIZE - 1, CELL_SIZE - 1); 
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            // Bordo Limite
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 3 / camera.zoom;
+            ctx.strokeRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+            ctx.restore();
+        }
+
+        // --- Input Mouse ---
+        function getGridPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const worldX = (mouseX - camera.x) / camera.zoom;
+            const worldY = (mouseY - camera.y) / camera.zoom;
+            return { col: Math.floor(worldX / CELL_SIZE), row: Math.floor(worldY / CELL_SIZE) };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                isDrawing = true;
+                const { col, row } = getGridPos(e);
+                if (col >= 0 && col < VIRTUAL_COLS && row >= 0 && row < VIRTUAL_ROWS) {
+                    grid[col][row] = grid[col][row] ? 0 : 1;
+                    draw();
+                }
+            } else if (e.button === 2 || e.button === 1) {
+                camera.isDragging = true;
+                camera.lastX = e.clientX;
+                camera.lastY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                const { col, row } = getGridPos(e);
+                if (col >= 0 && col < VIRTUAL_COLS && row >= 0 && row < VIRTUAL_ROWS) {
+                    grid[col][row] = 1;
+                    draw();
+                }
+            }
+            if (camera.isDragging) {
+                const dx = e.clientX - camera.lastX;
+                const dy = e.clientY - camera.lastY;
+                camera.x += dx;
+                camera.y += dy;
+                camera.lastX = e.clientX;
+                camera.lastY = e.clientY;
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => { isDrawing = false; camera.isDragging = false; canvas.style.cursor = 'default'; });
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        // --- Zoom Limits ---
+        function applyZoomLimits(targetZoom, forceCenter = false) {
+            const minZoomX = canvas.width / VIRTUAL_WIDTH;
+            const minZoomY = canvas.height / VIRTUAL_HEIGHT;
+            const minAllowedZoom = Math.max(minZoomX, minZoomY);
+
+            const MIN_CELLS_VISIBLE = 50;
+            const minScreenDim = Math.min(canvas.width, canvas.height);
+            const maxAllowedZoom = minScreenDim / (CELL_SIZE * MIN_CELLS_VISIBLE);
+
+            let newZoom = Math.max(minAllowedZoom, Math.min(maxAllowedZoom, targetZoom));
+            
+            if (newZoom <= minAllowedZoom + 0.001 || forceCenter) {
+                 camera.x = (canvas.width - VIRTUAL_WIDTH * newZoom) / 2;
+                 camera.y = (canvas.height - VIRTUAL_HEIGHT * newZoom) / 2;
+            }
+            return newZoom;
+        }
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = Math.exp((e.deltaY < 0 ? 1 : -1) * 0.1);
+            const newZoom = applyZoomLimits(camera.zoom * zoomFactor);
+
+            if (newZoom > (Math.max(canvas.width / VIRTUAL_WIDTH, canvas.height / VIRTUAL_HEIGHT) + 0.001)) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const effectiveFactor = newZoom / camera.zoom;
+                camera.x -= (mouseX - camera.x) * (effectiveFactor - 1);
+                camera.y -= (mouseY - camera.y) * (effectiveFactor - 1);
+            }
+            camera.zoom = newZoom;
+            draw();
+        });
+
+        // --- Gestione UI ---
+        const playBtn = document.getElementById('play-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const randomBtn = document.getElementById('random-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const loadBtn = document.getElementById('load-btn');
+
+        function togglePlay(play) {
+            isRunning = play;
+            playBtn.style.display = play ? 'none' : 'flex';
+            stopBtn.style.display = play ? 'flex' : 'none';
+            if (play) gameLoop();
+            else cancelAnimationFrame(animationId);
+        }
+
+        playBtn.addEventListener('click', () => togglePlay(true));
+        stopBtn.addEventListener('click', () => togglePlay(false));
+        
+        clearBtn.addEventListener('click', () => {
+            togglePlay(false);
+            grid = grid.map(col => col.fill(0));
+            draw();
+        });
+
+        randomBtn.addEventListener('click', () => {
+            randomizeGrid();
+            draw();
+        });
+
+        // --- Logica Memoria (Save/Load) ---
+        saveBtn.addEventListener('click', () => {
+            // Deep copy della griglia attuale
+            savedGrid = grid.map(arr => [...arr]);
+            // Feedback visivo semplice (bottone lampeggia)
+            const originalColor = saveBtn.style.color;
+            saveBtn.style.color = '#00ff00';
+            setTimeout(() => saveBtn.style.color = originalColor, 300);
+        });
+
+        loadBtn.addEventListener('click', () => {
+            if (savedGrid) {
+                togglePlay(false); // Ferma il gioco quando carichi
+                // Deep copy dalla memoria alla griglia attiva
+                grid = savedGrid.map(arr => [...arr]);
+                draw();
+                
+                // Feedback visivo
+                const originalColor = loadBtn.style.color;
+                loadBtn.style.color = '#00ff00';
+                setTimeout(() => loadBtn.style.color = originalColor, 300);
+            } else {
+                alert("Nessun disegno salvato in memoria!");
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
