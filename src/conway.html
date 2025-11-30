@@ -225,15 +225,14 @@
                     const cell = grid[col][row];
                     let numNeighbors = 0;
                     
-                    // Controllo rapido vicini
+                    // Controllo vicini con wrap-around toroidale
                     for (let i = -1; i <= 1; i++) {
                         for (let j = -1; j <= 1; j++) {
                             if (i === 0 && j === 0) continue;
-                            const x = col + i;
-                            const y = row + j;
-                            if (x >= 0 && x < VIRTUAL_COLS && y >= 0 && y < VIRTUAL_ROWS) {
-                                numNeighbors += grid[x][y];
-                            }
+                            // Wrap-around: i bordi si connettono tra loro
+                            const x = (col + i + VIRTUAL_COLS) % VIRTUAL_COLS;
+                            const y = (row + j + VIRTUAL_ROWS) % VIRTUAL_ROWS;
+                            numNeighbors += grid[x][y];
                         }
                     }
 
