@@ -18,6 +18,9 @@ Questo progetto utilizza HTML5 Canvas per renderizzare una griglia virtuale ampi
 * **Disegno Libero:** Clicca e trascina per "dare vita" alle cellule manualmente.
 * **Funzione Memoria:** * 💾 **Salva:** Memorizza lo stato attuale della griglia in una variabile temporanea.
     * 📂 **Carica:** Ripristina istantaneamente l'ultimo stato salvato.
+* **Export/Import Preset:** Condividi le tue creazioni!
+    * ⬇️ **Export:** Salva la configurazione corrente come file `.gol` (formato JSON).
+    * ⬆️ **Import:** Carica configurazioni da file `.gol` o `.json` creati da te o da altri.
 * **UI Minimalista:** Barra di controllo flottante (Dock) con icone intuitive e help visivo integrato.
 
 ## 🚀 Come usare
@@ -46,6 +49,8 @@ La barra di controllo si trova in basso al centro dello schermo:
 * 🗑️ **Clear:** Pulisce l'intera griglia (uccide tutte le cellule).
 * 💾 **Save:** Salva la configurazione attuale in memoria.
 * 📂 **Load:** Carica la configurazione salvata dalla memoria.
+* ⬇️ **Export:** Esporta la configurazione attuale come file `.gol` scaricabile.
+* ⬆️ **Import:** Importa una configurazione da un file `.gol` o `.json`.
 
 ## 🛠️ Dettagli Tecnici
 
