@@ -83,6 +83,7 @@
         #play-btn { color: #81c784; }
         #stop-btn { color: #e57373; }
         .memory-btn { color: #64b5f6; } /* Colore per Save/Load */
+        .share-btn { color: #ffb74d; } /* Colore per Export/Import */
 
         /* Separatore Verticale */
         .separator {
@@ -138,6 +139,12 @@
 
                 <button id="save-btn" class="memory-btn" title="Salva disegno in memoria">💾</button>
                 <button id="load-btn" class="memory-btn" title="Carica disegno dalla memoria">📂</button>
+
+                <div style="width: 10px;"></div>
+
+                <button id="export-btn" class="share-btn" title="Esporta preset come file">⬇️</button>
+                <button id="import-btn" class="share-btn" title="Importa preset da file">⬆️</button>
+                <input type="file" id="import-file" accept=".json,.gol" style="display: none;">
             </div>
 
             <div class="separator"></div>
@@ -392,6 +399,9 @@
         const randomBtn = document.getElementById('random-btn');
         const saveBtn = document.getElementById('save-btn');
         const loadBtn = document.getElementById('load-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const importBtn = document.getElementById('import-btn');
+        const importFile = document.getElementById('import-file');
 
         function togglePlay(play) {
             isRunning = play;
@@ -431,7 +441,7 @@
                 // Deep copy dalla memoria alla griglia attiva
                 grid = savedGrid.map(arr => [...arr]);
                 draw();
-                
+
                 // Feedback visivo
                 const originalColor = loadBtn.style.color;
                 loadBtn.style.color = '#00ff00';
@@ -439,6 +449,119 @@
             } else {
                 alert("Nessun disegno salvato in memoria!");
             }
+        });
+
+        // --- Logica Export/Import (Condivisione Preset) ---
+        exportBtn.addEventListener('click', () => {
+            // Usa la griglia salvata se esiste, altrimenti quella corrente
+            const dataToExport = savedGrid || grid;
+
+            // Crea oggetto preset con metadati
+            const preset = {
+                version: 1,
+                name: "Game of Life Preset",
+                date: new Date().toISOString(),
+                dimensions: { cols: VIRTUAL_COLS, rows: VIRTUAL_ROWS },
+                grid: dataToExport
+            };
+
+            // Converti in JSON
+            const jsonString = JSON.stringify(preset);
+
+            // Crea blob e link per download
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            // Genera nome file con timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+            const filename = `gameoflife_preset_${timestamp}.gol`;
+
+            // Trigger download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Feedback visivo
+            const originalColor = exportBtn.style.color;
+            exportBtn.style.color = '#00ff00';
+            setTimeout(() => exportBtn.style.color = originalColor, 300);
+        });
+
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const preset = JSON.parse(event.target.result);
+
+                    // Valida struttura base
+                    if (!preset.grid || !Array.isArray(preset.grid)) {
+                        throw new Error("Formato file non valido: manca la griglia");
+                    }
+
+                    // Verifica dimensioni
+                    if (preset.grid.length !== VIRTUAL_COLS ||
+                        (preset.grid[0] && preset.grid[0].length !== VIRTUAL_ROWS)) {
+                        const confirmLoad = confirm(
+                            `Attenzione: le dimensioni del preset (${preset.grid.length}x${preset.grid[0]?.length || 0}) ` +
+                            `sono diverse da quelle correnti (${VIRTUAL_COLS}x${VIRTUAL_ROWS}).\n\n` +
+                            `Vuoi comunque provare a caricarlo?`
+                        );
+                        if (!confirmLoad) return;
+                    }
+
+                    togglePlay(false); // Ferma il gioco
+
+                    // Carica la griglia (gestisce dimensioni diverse)
+                    const importedGrid = preset.grid;
+                    for (let col = 0; col < VIRTUAL_COLS; col++) {
+                        for (let row = 0; row < VIRTUAL_ROWS; row++) {
+                            if (importedGrid[col] && importedGrid[col][row] !== undefined) {
+                                grid[col][row] = importedGrid[col][row] ? 1 : 0;
+                            } else {
+                                grid[col][row] = 0;
+                            }
+                        }
+                    }
+
+                    // Salva anche in memoria
+                    savedGrid = grid.map(arr => [...arr]);
+
+                    draw();
+
+                    // Feedback visivo
+                    const originalColor = importBtn.style.color;
+                    importBtn.style.color = '#00ff00';
+                    setTimeout(() => importBtn.style.color = originalColor, 300);
+
+                    // Mostra info preset se disponibili
+                    if (preset.name || preset.date) {
+                        console.log(`Preset caricato: ${preset.name || 'Senza nome'} - ${preset.date || 'Data sconosciuta'}`);
+                    }
+
+                } catch (error) {
+                    alert(`Errore durante l'importazione: ${error.message}`);
+                }
+            };
+
+            reader.onerror = () => {
+                alert("Errore durante la lettura del file");
+            };
+
+            reader.readAsText(file);
+
+            // Reset input per permettere di ricaricare lo stesso file
+            importFile.value = '';
         });
 
         init();
